@@ -66,8 +66,9 @@ def predict_and_display(image_path):
 
 
 
+
 def analyze_video(video_path):
-    """Funkcja do analizy nagrania wideo."""
+    """Funkcja do analizy i odtwarzania nagrania wideo w GUI."""
     try:
         cap = cv2.VideoCapture(video_path)
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -78,11 +79,15 @@ def analyze_video(video_path):
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
-        while cap.isOpened():
+        def process_frame():
             ret, frame = cap.read()
             if not ret:
-                break
+                cap.release()
+                out.release()
+                results_text.insert(tk.END, f"Wideo zapisano: {output_path}\n")
+                return
 
+            # Przetwarzanie klatki
             frame_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             results = model.predict(source=frame, conf=0.5, save=False)
             draw = ImageDraw.Draw(frame_pil)
@@ -97,19 +102,29 @@ def analyze_video(video_path):
                 xyxy = box.xyxy[0].tolist()
                 x_min, y_min, x_max, y_max = map(int, xyxy)
 
+                # Rysowanie bounding boxów i tekstu
                 draw.rectangle([x_min, y_min, x_max, y_max], outline="blue", width=2)
                 label = f"{model.names[cls]}: {conf:.2f}"
-                draw.text((x_min, y_min - 15), label, fill="white", font=font)
+                draw.text((x_min, y_min - 15), label, fill="red", font=font)
 
+            # Zapis do pliku wyjściowego
             frame = cv2.cvtColor(np.array(frame_pil), cv2.COLOR_RGB2BGR)
             out.write(frame)
 
-        cap.release()
-        out.release()
-        results_text.insert(tk.END, f"Wideo zapisano: {output_path}\n")
+            # Wyświetlanie klatki w GUI
+            frame_image = ImageTk.PhotoImage(frame_pil)
+            video_panel.config(image=frame_image)
+            video_panel.image = frame_image
+
+            # Wywołanie kolejnej klatki
+            video_panel.after(int(1000 / fps), process_frame)
+
+        process_frame()
 
     except Exception as e:
         results_text.insert(tk.END, f"Błąd podczas analizy wideo: {e}\n")
+
+
 
 def load_image():
     file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.png *.jpeg")])
@@ -130,15 +145,23 @@ def display_image(image):
 window = tk.Tk()
 window.title("YOLOv8 Traffic Sign Detection")
 
+# Przycisk do wczytywania obrazu
 btn = tk.Button(window, text="Wczytaj obraz", command=load_image, font=("Arial", 14))
 btn.pack(pady=10)
 
+# Przycisk do wczytywania wideo
 btn_video = tk.Button(window, text="Wczytaj wideo", command=load_video, font=("Arial", 14))
 btn_video.pack(pady=10)
 
+# Panel do wyświetlania obrazu
 panel = tk.Label(window)
 panel.pack()
 
+# Panel do wyświetlania wideo
+video_panel = tk.Label(window)  # Nowy panel dla wideo
+video_panel.pack()
+
+# Pole tekstowe do wyników
 results_text = tk.Text(window, height=10, width=70, font=("Arial", 12))
 results_text.pack(pady=10)
 
