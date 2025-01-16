@@ -9,8 +9,12 @@ from ultralytics import YOLO
 model = YOLO("runs/detect/traffic_signs/weights/best.pt")
 
 def predict_and_display(image_path):
-    """Funkcja do przeprowadzenia predykcji i wyświetlenia wyników."""
+    """Funkcja do przeprowadzenia predykcji i wyświetlenia wyników na zdjęciu."""
     try:
+        # Ustaw widoczność paneli
+        panel.pack()  # Wyświetl panel obrazu
+        video_panel.pack_forget()  # Ukryj panel wideo
+
         # Wykonanie predykcji
         results = model.predict(source=image_path, conf=0.5, save=False)
 
@@ -19,33 +23,30 @@ def predict_and_display(image_path):
         draw = ImageDraw.Draw(image)
 
         # Załaduj czcionkę i ustaw rozmiar
-        font_path = "arial.ttf"  # Ścieżka do pliku czcionki (zmień, jeśli potrzebne)
-        font_size = 70  # Ustaw większy rozmiar
+        font_path = "arial.ttf"  # Ścieżka do pliku czcionki
+        font_size = 70
         font = ImageFont.truetype(font_path, font_size)
 
         # Lista wykrytych znaków
         detected_classes = []
 
         for box in results[0].boxes:
-            cls = int(box.cls)  # Klasa obiektu
-            conf = float(box.conf)  # Pewność predykcji
-            xyxy = box.xyxy[0].tolist()  # Współrzędne boxa (x_min, y_min, x_max, y_max)
-
-            # Współrzędne boxa
+            cls = int(box.cls)
+            conf = float(box.conf)
+            xyxy = box.xyxy[0].tolist()
             x_min, y_min, x_max, y_max = map(int, xyxy)
 
             # Rysowanie bounding boxa
             draw.rectangle([x_min, y_min, x_max, y_max], outline="blue", width=2)
 
-            # Wyświetlenie tekstu (klasa + pewność)
+            # Wyświetlenie tekstu
             label = f"{model.names[cls]}: {conf:.2f}"
-            text_bbox = draw.textbbox((x_min, y_min), label, font=font)  # Pobierz wymiary tekstu
+            text_bbox = draw.textbbox((x_min, y_min), label, font=font)
             text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
             text_background = [(x_min, y_min - text_height - 2), (x_min + text_width + 2, y_min)]
             draw.rectangle(text_background, fill="blue")
             draw.text((x_min, y_min - text_height - 2), label, fill="white", font=font)
 
-            # Dodanie wykrytego znaku do listy
             detected_classes.append(f"{model.names[cls]}: {conf:.2%}")
 
         # Wyświetlenie wyników w GUI
@@ -60,7 +61,6 @@ def predict_and_display(image_path):
         display_image(image)
 
     except Exception as e:
-        # Wyświetlenie błędu w polu tekstowym
         results_text.delete(1.0, tk.END)
         results_text.insert(tk.END, f"Błąd: {e}")
 
@@ -70,6 +70,11 @@ def predict_and_display(image_path):
 def analyze_video(video_path):
     """Funkcja do analizy i odtwarzania nagrania wideo w GUI."""
     try:
+        # Ustaw widoczność paneli
+        panel.pack_forget()  # Ukryj panel obrazu
+        video_panel.pack()  # Wyświetl panel wideo
+        results_text.pack_forget() #7ukryj tabelke
+
         cap = cv2.VideoCapture(video_path)
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -102,7 +107,6 @@ def analyze_video(video_path):
                 xyxy = box.xyxy[0].tolist()
                 x_min, y_min, x_max, y_max = map(int, xyxy)
 
-                # Rysowanie bounding boxów i tekstu
                 draw.rectangle([x_min, y_min, x_max, y_max], outline="blue", width=2)
                 label = f"{model.names[cls]}: {conf:.2f}"
                 draw.text((x_min, y_min - 15), label, fill="red", font=font)
@@ -160,6 +164,7 @@ panel.pack()
 # Panel do wyświetlania wideo
 video_panel = tk.Label(window)  # Nowy panel dla wideo
 video_panel.pack()
+video_panel.pack_forget()
 
 # Pole tekstowe do wyników
 results_text = tk.Text(window, height=10, width=70, font=("Arial", 12))
